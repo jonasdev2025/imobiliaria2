@@ -124,7 +124,6 @@
     const userText = input.value.trim();
     if (userText === '') return;
 
-    // Mostrar mensagem do usuário
     chatBody.innerHTML += `<p><strong>Você:</strong> ${userText}</p>`;
     input.value = "";
     chatBody.scrollTop = chatBody.scrollHeight;
@@ -137,13 +136,18 @@
       });
 
       const data = await response.json();
-      const botReply = data.reply || "Desculpe, algo deu errado. Tente novamente.";
 
+      if (!response.ok) {
+        throw new Error(data.error || "Erro desconhecido");
+      }
+
+      const botReply = data.reply;
       chatBody.innerHTML += `<p><strong>Bot:</strong> ${botReply}</p>`;
-      chatBody.scrollTop = chatBody.scrollHeight;
     } catch (error) {
-      chatBody.innerHTML += `<p><strong>Bot:</strong> Erro na conexão. Tente mais tarde.</p>`;
+      chatBody.innerHTML += `<p><strong>Bot:</strong> Erro: ${error.message}</p>`;
     }
+
+    chatBody.scrollTop = chatBody.scrollHeight;
   }
 </script>
 
