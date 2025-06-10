@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Imobiliária Exemplo</title>
+  <style>
+    body { font-family: Arial, sans-serif; margin: 0; padding: 0; }
+    header, footer { background: #003366; color: white; text-align: center; padding: 20px; }
+    nav a { margin: 0 15px; color: white; text-decoration: none; }
+    section { padding: 40px 20px; }
+    h2 { color: #003366; }
+    .imoveis img { width: 100%; max-width: 300px; }
+    .imoveis { display: flex; flex-wrap: wrap; gap: 20px; justify-content: center; }
+    .imovel { border: 1px solid #ccc; padding: 10px; border-radius: 8px; width: 300px; }
+    .chatbot-container {
+      position: fixed; bottom: 20px; right: 20px; width: 300px; background: #fff; border: 1px solid #ccc;
+      border-radius: 8px; overflow: hidden; box-shadow: 0 0 10px rgba(0,0,0,0.3); display: none;
+    }
+    .chatbot-header { background: #003366; color: #fff; padding: 10px; font-weight: bold; }
+    .chatbot-body { height: 200px; overflow-y: auto; padding: 10px; }
+    .chatbot-input { display: flex; }
+    .chatbot-input input { flex: 1; padding: 10px; border: none; border-top: 1px solid #ccc; }
+    .chatbot-input button { padding: 10px; border: none; background: #003366; color: white; cursor: pointer; }
+    .chat-toggle { position: fixed; bottom: 20px; right: 20px; background: #003366; color: white; padding: 10px; border-radius: 50%; cursor: pointer; }
+  </style>
+</head>
+<body>
+
+<header>
+  <h1>Imobiliária Exemplo</h1>
+  <nav>
+    <a href="#imoveis">Imóveis</a>
+    <a href="#sobre">Sobre</a>
+    <a href="#servicos">Serviços</a>
+    <a href="#blog">Blog</a>
+    <a href="#contato">Contato</a>
+  </nav>
+</header>
+
+<section id="imoveis">
+  <h2>Imóveis Disponíveis</h2>
+  <div class="imoveis">
+    <div class="imovel">
+      <img src="1.png" alt="Imóvel 1">
+      <h3>Casa no Centro</h3>
+      <p>3 quartos, 2 banheiros, R$ 350.000</p>
+    </div>
+    <div class="imovel">
+      <img src="2.png" alt="Imóvel 2">
+      <h3>Apartamento Moderno</h3>
+      <p>2 quartos, 1 suíte, R$ 250.000</p>
+    </div>
+    <div class="imovel">
+      <img src="3.png" alt="Imóvel 3">
+      <h3>Terreno 400m²</h3>
+      <p>Bairro planejado, R$ 120.000</p>
+    </div>
+  </div>
+</section>
+
+<section id="sobre">
+  <h2>Sobre a Imobiliária</h2>
+  <p>Atuamos há mais de 15 anos no mercado, conectando pessoas ao imóvel dos seus sonhos. Nossa equipe é formada por profissionais credenciados pelo CRECI.</p>
+</section>
+
+<section id="servicos">
+  <h2>Serviços</h2>
+  <ul>
+    <li>Venda e locação de imóveis</li>
+    <li>Avaliação de imóveis</li>
+    <li>Consultoria jurídica</li>
+    <li>Administração de aluguéis</li>
+    <li>Simulação de financiamento</li>
+  </ul>
+</section>
+
+<section id="blog">
+  <h2>Blog e Dicas</h2>
+  <p>Veja as últimas notícias e dicas sobre o mercado imobiliário, decoração, financiamento e muito mais.</p>
+</section>
+
+<section id="contato">
+  <h2>Contato</h2>
+  <p>Telefone: (11) 99999-9999</p>
+  <p>Email: contato@imobiliariaexemplo.com.br</p>
+  <p>Endereço: Rua Exemplo, 123 - Centro</p>
+  <form>
+    <input type="text" placeholder="Seu nome" required><br><br>
+    <input type="email" placeholder="Seu e-mail" required><br><br>
+    <textarea placeholder="Sua mensagem" required></textarea><br><br>
+    <button type="submit">Enviar</button>
+  </form>
+</section>
+
+<footer>
+  <p>&copy; 2025 Imobiliária Exemplo - Todos os direitos reservados.</p>
+</footer>
+
+<!-- Botão de abrir o chat -->
+<div class="chat-toggle" onclick="toggleChat()">💬</div>
+
+<!-- Chatbot -->
+<div class="chatbot-container" id="chatbot">
+  <div class="chatbot-header">Atendimento Virtual</div>
+  <div class="chatbot-body" id="chat-body">
+    <p><strong>Bot:</strong> Olá! Como posso ajudar você hoje?</p>
+  </div>
+  <div class="chatbot-input">
+    <input type="text" id="user-input" placeholder="Digite sua mensagem...">
+    <button onclick="sendMessage()">Enviar</button>
+  </div>
+</div>
+
+<script>
+  function toggleChat() {
+    const chat = document.getElementById('chatbot');
+    chat.style.display = (chat.style.display === 'none' || chat.style.display === '') ? 'block' : 'none';
+  }
+
+  async function sendMessage() {
+    const input = document.getElementById('user-input');
+    const chatBody = document.getElementById('chat-body');
+    const userText = input.value.trim();
+    if (userText === '') return;
+
+    // Mostrar mensagem do usuário
+    chatBody.innerHTML += `<p><strong>Você:</strong> ${userText}</p>`;
+    input.value = "";
+    chatBody.scrollTop = chatBody.scrollHeight;
+
+    try {
+      const response = await fetch('https://SEU_BACKEND.vercel.app/api/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ message: userText })
+      });
+
+      const data = await response.json();
+      const botReply = data.reply || "Desculpe, algo deu errado. Tente novamente.";
+
+      chatBody.innerHTML += `<p><strong>Bot:</strong> ${botReply}</p>`;
+      chatBody.scrollTop = chatBody.scrollHeight;
+    } catch (error) {
+      chatBody.innerHTML += `<p><strong>Bot:</strong> Erro na conexão. Tente mais tarde.</p>`;
+    }
+  }
+</script>
+
+</body>
+</html>
