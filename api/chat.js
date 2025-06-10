@@ -1,16 +1,16 @@
 import OpenAI from "openai";
 
+if (!process.env.OPENAI_API_KEY) {
+  throw new Error("A variável de ambiente OPENAI_API_KEY não está configurada.");
+}
+
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
 });
 
 export default async function handler(req, res) {
   if (req.method !== "POST") {
-    return res.status(405).json({ error: "Method not allowed" });
-  }
-
-  if (!process.env.OPENAI_API_KEY) {
-    return res.status(500).json({ error: "Chave da API OpenAI não configurada." });
+    return res.status(405).json({ error: "Método não permitido. Use POST." });
   }
 
   const { message } = req.body;
@@ -24,21 +24,16 @@ export default async function handler(req, res) {
       messages: [{ role: "user", content: message }],
     });
 
-    const reply = completion.choices[0].message.content;
+    const reply = completion.choices[0]?.message?.content || "Sem resposta do modelo.";
     return res.status(200).json({ reply });
+
   } catch (error) {
     console.error("Erro na chamada OpenAI:", error);
 
-    // Erros da API da OpenAI (com estrutura conhecida)
-    if (error?.code === "insufficient_quota") {
+    // Tratamento de erro por limite de cota
+    if (error?.code === "insufficient_quota" || error?.status === 429) {
       return res.status(429).json({
-        error: "Limite de uso da API da OpenAI excedido. Verifique sua conta ou plano.",
-      });
-    }
-
-    if (error?.status === 429) {
-      return res.status(429).json({
-        error: "Você está enviando muitas requisições. Tente novamente em instantes.",
+        error: "Limite de uso da API da OpenAI excedido ou muitas requisições. Verifique sua conta ou tente mais tarde.",
       });
     }
 
