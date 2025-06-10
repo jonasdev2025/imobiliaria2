@@ -56,7 +56,7 @@
             text-align: center;
         }
 
-        /* --- Estilos do Chatbot Corrigidos --- */
+        /* --- Estilos do Chatbot --- */
         #chatbot-container-wrapper { /* Novo wrapper para agrupar botão e chatbot */
             position: fixed;
             bottom: 20px;
@@ -167,7 +167,8 @@
         <h2>Imóveis Disponíveis</h2>
         <div class="imoveis">
             <div class="imovel">
-                <img src="https://via.placeholder.com/300x200?text=Imovel+1" alt="Imóvel 1"> <h3>Casa no Centro</h3>
+                <img src="https://via.placeholder.com/300x200?text=Imovel+1" alt="Imóvel 1">
+                <h3>Casa no Centro</h3>
                 <p>3 quartos, 2 banheiros, R$ 350.000</p>
             </div>
             <div class="imovel">
@@ -236,25 +237,19 @@
         </div>
     </div>
 
-
     <script>
-        // Armazenar o histórico da conversa aqui
-        const chatHistory = [
-            {
-                role: "model",
-                parts: [{ text: "Olá! Eu sou seu assistente virtual imobiliário. Como posso ajudar hoje?" }],
-            }
-        ];
+        // O histórico da conversa começa **vazio**.
+        // A API do Gemini espera que a primeira mensagem seja sempre do usuário.
+        const chatHistory = [];
 
         function toggleChat() {
             const chat = document.getElementById('chatbot');
-            // Alternar a exibição do chatbot
             chat.style.display = (chat.style.display === 'none' || chat.style.display === '') ? 'flex' : 'none';
-            // Rolar para o final ao abrir (útil se houver muitas mensagens)
+
             if (chat.style.display === 'flex') {
                 const chatBody = document.getElementById('chat-body');
                 chatBody.scrollTop = chatBody.scrollHeight;
-                document.getElementById('user-input').focus(); // Foca no input ao abrir
+                document.getElementById('user-input').focus();
             }
         }
 
@@ -265,51 +260,56 @@
 
             if (userText === '') return;
 
-            // Adiciona a mensagem do usuário ao chat no frontend
+            // Adiciona a mensagem do usuário ao chat no frontend para visualização
             chatBody.innerHTML += `<p><strong>Você:</strong> ${userText}</p>`;
-            // Adiciona a mensagem do usuário ao histórico para enviar ao backend
+
+            // Adiciona a mensagem do usuário ao histórico que será enviado ao backend (para o Gemini)
             chatHistory.push({
                 role: "user",
                 parts: [{ text: userText }],
             });
 
-            input.value = ""; // Limpa o input
+            input.value = ""; // Limpa o campo de input
             chatBody.scrollTop = chatBody.scrollHeight; // Rola para o final do chat
 
-            // Adicionar uma mensagem de "digitando..." para melhor UX
+            // Adiciona um indicador de "digitando..." para melhorar a experiência do usuário
             const typingIndicator = document.createElement('p');
             typingIndicator.id = 'typing-indicator';
             typingIndicator.innerHTML = '<strong>Bot:</strong> digitando...';
             chatBody.appendChild(typingIndicator);
-            chatBody.scrollTop = chatBody.scrollHeight; // Rola para ver o indicador
+            chatBody.scrollTop = chatBody.scrollHeight;
 
             try {
+                // Faz a requisição para a sua API Route na Vercel
                 const response = await fetch('https://imobiliaria2.vercel.app/api/chat', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    // Envia a mensagem atual E o histórico completo da conversa
+                    // Envia a mensagem atual E o histórico completo da conversa para o backend
                     body: JSON.stringify({ message: userText, history: chatHistory })
                 });
 
-                // Remover o indicador de digitando
+                // Remove o indicador de digitando após a resposta (ou erro)
                 typingIndicator.remove();
 
                 const data = await response.json();
 
                 if (!response.ok) {
+                    // Lança um erro se a resposta HTTP não for bem-sucedida (ex: 500, 429)
                     throw new Error(data.error || "Erro desconhecido ao obter resposta da IA.");
                 }
 
                 const botReply = data.reply;
+                // Adiciona a resposta do bot ao chat no frontend
                 chatBody.innerHTML += `<p><strong>Bot:</strong> ${botReply}</p>`;
-                // Adiciona a resposta do bot ao histórico
+
+                // Adiciona a resposta do bot ao histórico para futuras interações com o Gemini
                 chatHistory.push({
                     role: "model",
                     parts: [{ text: botReply }],
                 });
 
             } catch (error) {
-                // Remover o indicador de digitando se ocorrer um erro
+                // Em caso de erro, remove o indicador de digitando e exibe a mensagem de erro
                 const currentTypingIndicator = document.getElementById('typing-indicator');
                 if (currentTypingIndicator) {
                     currentTypingIndicator.remove();
@@ -318,23 +318,15 @@
                 console.error("Erro no frontend:", error);
             }
 
-            chatBody.scrollTop = chatBody.scrollHeight; // Rola para o final novamente
+            chatBody.scrollTop = chatBody.scrollHeight; // Garante que o chat esteja no final após a interação
         }
 
-        // Opcional: Enviar mensagem ao pressionar Enter
+        // Adiciona um event listener para enviar a mensagem ao pressionar "Enter" no input
         document.getElementById('user-input').addEventListener('keypress', function(e) {
             if (e.key === 'Enter') {
                 sendMessage();
             }
         });
-
-        // Opcional: Focar no input quando o chatbot é aberto
-        // O event listener foi movido para dentro do toggleChat para melhor consistência
-        // document.getElementById('chatbot-toggle-button').addEventListener('click', function() {
-        //     if (document.getElementById('chatbot').style.display === 'flex') {
-        //         document.getElementById('user-input').focus();
-        //     }
-        // });
     </script>
 
 </body>
