@@ -130,7 +130,7 @@
     chatBody.scrollTop = chatBody.scrollHeight;
 
     try {
-      const response = await fetch('https://SEU_BACKEND.vercel.app/api/chat', {
+      const response = await fetch('https://imobiliaria2.vercel.app/api/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ message: userText })
