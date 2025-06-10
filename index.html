@@ -228,8 +228,7 @@
         <div class="chatbot-container" id="chatbot">
             <div class="chatbot-header">Atendimento Virtual</div>
             <div class="chatbot-body" id="chat-body">
-                <p><strong>Bot:</strong> Olá! Eu sou seu assistente virtual imobiliário. Como posso ajudar hoje?</p>
-            </div>
+                </div>
             <div class="chatbot-input">
                 <input type="text" id="user-input" placeholder="Digite sua mensagem...">
                 <button id="send-button" onclick="sendMessage()">Enviar</button>
@@ -238,9 +237,63 @@
     </div>
 
     <script>
-        // O histórico da conversa começa **vazio**.
-        // A API do Gemini espera que a primeira mensagem seja sempre do usuário.
+        // O histórico da conversa para o Gemini.
         const chatHistory = [];
+
+        // Variáveis para armazenar as informações do lead
+        let leadData = {
+            busca: '',
+            nome: '',
+            whatsapp: ''
+        };
+
+        // Estados da conversa para a coleta de lead
+        const CONVERSATION_STATE = {
+            INITIAL: 'initial',
+            ASKING_BUSCA: 'asking_busca',
+            ASKING_NOME: 'asking_nome',
+            ASKING_WHATSAPP: 'asking_whatsapp',
+            COLLECTED_ALL: 'collected_all',
+            NORMAL_CHAT: 'normal_chat' // Estado para quando a coleta de lead não está ativa
+        };
+        let currentState = CONVERSATION_STATE.INITIAL; // Começa no estado inicial
+
+        // Função para adicionar mensagem ao chat na UI
+        function appendMessage(role, text) {
+            const chatBody = document.getElementById('chat-body');
+            const p = document.createElement('p');
+            p.innerHTML = `<strong>${role === 'user' ? 'Você' : 'Bot'}:</strong> ${text}`;
+            chatBody.appendChild(p);
+            chatBody.scrollTop = chatBody.scrollHeight; // Rola para o final
+        }
+
+        // Função para exibir a próxima pergunta na sequência
+        function askNextQuestion() {
+            switch (currentState) {
+                case CONVERSATION_STATE.INITIAL:
+                    appendMessage('model', 'Olá! Sou seu assistente virtual imobiliário. Para começar, o que você está buscando? (Ex: casa para alugar, apartamento para comprar, terreno)');
+                    currentState = CONVERSATION_STATE.ASKING_BUSCA;
+                    break;
+                case CONVERSATION_STATE.ASKING_NOME:
+                    appendMessage('model', 'Certo. Qual é o seu nome completo, por favor?');
+                    currentState = CONVERSATION_STATE.ASKING_NOME;
+                    break;
+                case CONVERSATION_STATE.ASKING_WHATSAPP:
+                    appendMessage('model', 'Ótimo, obrigado! Por favor, informe seu número de WhatsApp para contato (com DDD):');
+                    currentState = CONVERSATION_STATE.ASKING_WHATSAPP;
+                    break;
+                case CONVERSATION_STATE.COLLECTED_ALL:
+                    // Isso não deve acontecer, pois o estado mudaria antes
+                    break;
+                case CONVERSATION_STATE.NORMAL_CHAT:
+                    // Se entrar aqui, significa que a coleta de lead já foi feita ou o usuário desviou.
+                    // O bot pode então se comunicar via Gemini.
+                    // Para este exemplo, o bot só vai coletar dados.
+                    appendMessage('model', 'Entendi! Para que eu possa te ajudar melhor, preciso dessas informações.');
+                    break;
+            }
+        }
+
 
         function toggleChat() {
             const chat = document.getElementById('chatbot');
@@ -248,6 +301,10 @@
 
             if (chat.style.display === 'flex') {
                 const chatBody = document.getElementById('chat-body');
+                // Se o chat for aberto pela primeira vez, faça a primeira pergunta
+                if (chatBody.innerHTML.trim() === '') {
+                    askNextQuestion();
+                }
                 chatBody.scrollTop = chatBody.scrollHeight;
                 document.getElementById('user-input').focus();
             }
@@ -255,76 +312,106 @@
 
         async function sendMessage() {
             const input = document.getElementById('user-input');
-            const chatBody = document.getElementById('chat-body');
             const userText = input.value.trim();
 
             if (userText === '') return;
 
-            // Adiciona a mensagem do usuário ao chat no frontend para visualização
-            chatBody.innerHTML += `<p><strong>Você:</strong> ${userText}</p>`;
+            appendMessage('user', userText); // Exibe a mensagem do usuário
+            input.value = ""; // Limpa o input
 
-            // Adiciona a mensagem do usuário ao histórico que será enviado ao backend (para o Gemini)
-            chatHistory.push({
-                role: "user",
-                parts: [{ text: userText }],
-            });
+            // Lógica de coleta de dados do lead
+            switch (currentState) {
+                case CONVERSATION_STATE.ASKING_BUSCA:
+                    leadData.busca = userText;
+                    currentState = CONVERSATION_STATE.ASKING_NOME;
+                    askNextQuestion(); // Pede o nome
+                    break;
+                case CONVERSATION_STATE.ASKING_NOME:
+                    leadData.nome = userText;
+                    currentState = CONVERSATION_STATE.ASKING_WHATSAPP;
+                    askNextQuestion(); // Pede o WhatsApp
+                    break;
+                case CONVERSATION_STATE.ASKING_WHATSAPP:
+                    leadData.whatsapp = userText;
+                    currentState = CONVERSATION_STATE.COLLECTED_ALL;
+                    appendMessage('model', 'Aguarde um momento, estamos registrando suas informações...');
+                    // Agora que todas as informações foram coletadas, enviamos para o backend
+                    await sendLeadToHubSpot(leadData);
+                    break;
+                case CONVERSATION_STATE.INITIAL: // Se o usuário digitar algo antes da primeira pergunta (pouco provável)
+                case CONVERSATION_STATE.NORMAL_CHAT: // Se o bot já passou do fluxo de coleta inicial
+                    // Neste cenário, você pode decidir se quer que o bot de IA responda a perguntas gerais
+                    // ou se ele sempre focará na coleta de leads. Para este exemplo, ele só coleta.
+                    // Se quiser que o Gemini responda depois, você chamaria a API do Gemini aqui,
+                    // passando o chatHistory.
+                    appendMessage('model', 'Por favor, siga as perguntas para que eu possa registrar suas informações.');
+                    break;
+            }
+        }
 
-            input.value = ""; // Limpa o campo de input
-            chatBody.scrollTop = chatBody.scrollHeight; // Rola para o final do chat
-
-            // Adiciona um indicador de "digitando..." para melhorar a experiência do usuário
+        async function sendLeadToHubSpot(data) {
+            const chatBody = document.getElementById('chat-body');
             const typingIndicator = document.createElement('p');
             typingIndicator.id = 'typing-indicator';
-            typingIndicator.innerHTML = '<strong>Bot:</strong> digitando...';
+            typingIndicator.innerHTML = '<strong>Bot:</strong> processando...';
             chatBody.appendChild(typingIndicator);
             chatBody.scrollTop = chatBody.scrollHeight;
 
             try {
-                // Faz a requisição para a sua API Route na Vercel
                 const response = await fetch('https://imobiliaria2.vercel.app/api/chat', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    // Envia a mensagem atual E o histórico completo da conversa para o backend
-                    body: JSON.stringify({ message: userText, history: chatHistory })
+                    // Envia todas as informações de lead para o backend
+                    body: JSON.stringify({
+                        action: 'create_lead', // Sinaliza que a ação é criar um lead
+                        busca: data.busca,
+                        nome: data.nome,
+                        whatsapp: data.whatsapp
+                    })
                 });
 
-                // Remove o indicador de digitando após a resposta (ou erro)
-                typingIndicator.remove();
+                typingIndicator.remove(); // Remove o indicador
 
-                const data = await response.json();
+                const result = await response.json();
 
-                if (!response.ok) {
-                    // Lança um erro se a resposta HTTP não for bem-sucedida (ex: 500, 429)
-                    throw new Error(data.error || "Erro desconhecido ao obter resposta da IA.");
+                if (response.ok && result.success) {
+                    appendMessage('model', '✅ Sucesso! Suas informações foram registradas com sucesso. Em breve um de nossos especialistas entrará em contato para te ajudar a encontrar o imóvel ideal!');
+                    currentState = CONVERSATION_STATE.NORMAL_CHAT; // Lead criado, volta para chat "normal" se quiser
+                    // Resetar leadData para um novo ciclo de coleta, se o usuário quiser iniciar outra busca
+                    leadData = { busca: '', nome: '', whatsapp: '' };
+                } else {
+                    appendMessage('model', `❌ Erro ao registrar suas informações: ${result.message || 'Erro desconhecido.'} Por favor, tente novamente ou entre em contato direto.`);
+                    // Permite tentar novamente ou reorienta a conversa
+                    currentState = CONVERSATION_STATE.INITIAL; // Pode voltar para o início da coleta
+                    leadData = { busca: '', nome: '', whatsapp: '' }; // Limpa os dados para nova tentativa
+                    askNextQuestion(); // Faz a primeira pergunta novamente
                 }
-
-                const botReply = data.reply;
-                // Adiciona a resposta do bot ao chat no frontend
-                chatBody.innerHTML += `<p><strong>Bot:</strong> ${botReply}</p>`;
-
-                // Adiciona a resposta do bot ao histórico para futuras interações com o Gemini
-                chatHistory.push({
-                    role: "model",
-                    parts: [{ text: botReply }],
-                });
-
             } catch (error) {
-                // Em caso de erro, remove o indicador de digitando e exibe a mensagem de erro
                 const currentTypingIndicator = document.getElementById('typing-indicator');
                 if (currentTypingIndicator) {
                     currentTypingIndicator.remove();
                 }
-                chatBody.innerHTML += `<p><strong>Bot:</strong> <span style="color: red;">Erro: ${error.message}</span></p>`;
-                console.error("Erro no frontend:", error);
+                appendMessage('model', `❌ Erro de comunicação: ${error.message}. Por favor, verifique sua conexão ou tente mais tarde.`);
+                console.error("Erro ao enviar lead para o backend:", error);
+                currentState = CONVERSATION_STATE.INITIAL; // Volta para o início
+                leadData = { busca: '', nome: '', whatsapp: '' };
+                askNextQuestion();
             }
-
-            chatBody.scrollTop = chatBody.scrollHeight; // Garante que o chat esteja no final após a interação
         }
 
-        // Adiciona um event listener para enviar a mensagem ao pressionar "Enter" no input
+        // Enviar mensagem ao pressionar Enter
         document.getElementById('user-input').addEventListener('keypress', function(e) {
             if (e.key === 'Enter') {
                 sendMessage();
+            }
+        });
+
+        // Garante que a primeira pergunta seja feita assim que o chatbot é aberto
+        // ou quando a página é carregada e o chatbot já está visível
+        window.addEventListener('load', () => {
+            const chatBody = document.getElementById('chat-body');
+            if (chatBody.innerHTML.trim() === '') { // Se o chat body estiver vazio (primeira carga)
+                askNextQuestion();
             }
         });
     </script>
