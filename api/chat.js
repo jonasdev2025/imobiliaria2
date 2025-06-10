@@ -23,7 +23,7 @@ export default async function handler(req, res) {
   }
 
   const genAI = new GoogleGenerativeAI(apiKey);
-  const model = genAI.getGenerativeModel({ model: "gemini-pro" }); // ou "gemini-1.5-flash"
+  const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
 
   try {
     const chat = model.startChat({
