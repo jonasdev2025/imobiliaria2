@@ -1,6 +1,7 @@
 {
   "name": "imobiliaria-chat",
   "version": "1.0.0",
+  "type": "module",
   "dependencies": {
     "openai": "^4.10.0"
   }
